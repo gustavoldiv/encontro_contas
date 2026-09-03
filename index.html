@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ajuste A600 · Encontro de Contas</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
+<style>
+  :root{
+    --bg: #F5F7F4;
+    --surface: #FFFFFF;
+    --ink: #1B2B22;
+    --muted: #6B7A70;
+    --line: #E1E6DF;
+    --green: #00824B;
+    --green-dark: #045C36;
+    --teal: #0097A9;
+    --teal-dark: #007584;
+    --amber: #B9722B;
+    --red: #B23A2E;
+    --red-bg: #FBEDEB;
+    --green-bg: #EAF5EF;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--sans);
+    line-height:1.5;
+  }
+  header.app{
+    background:linear-gradient(180deg,var(--green-dark),var(--green));
+    color:#fff;
+    padding:22px 28px;
+  }
+  header.app .row{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    max-width:1040px;
+    margin:0 auto;
+    flex-wrap:wrap;
+    gap:6px;
+  }
+  header.app h1{
+    font-size:20px;
+    margin:0;
+    font-weight:600;
+    letter-spacing:.2px;
+  }
+  header.app .tag{
+    font-size:12.5px;
+    color:#CFEBDB;
+  }
+  main{
+    max-width:1040px;
+    margin:0 auto;
+    padding:28px 28px 80px;
+  }
+  .step{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:10px;
+    margin-bottom:20px;
+    overflow:hidden;
+  }
+  .step-head{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:16px 20px;
+    border-bottom:1px solid var(--line);
+    background:#FAFBF9;
+  }
+  .step-num{
+    width:26px; height:26px;
+    border-radius:50%;
+    background:var(--green);
+    color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px; font-weight:700;
+    flex:none;
+  }
+  .step-head h2{
+    font-size:15.5px;
+    margin:0;
+    font-weight:600;
+  }
+  .step-head p{
+    margin:2px 0 0;
+    font-size:13px;
+    color:var(--muted);
+  }
+  .step-body{ padding:20px; }
+  .dropzone{
+    border:1.5px dashed #BFCDBF;
+    border-radius:8px;
+    padding:26px;
+    text-align:center;
+    color:var(--muted);
+    font-size:13.5px;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  .dropzone:hover, .dropzone.drag{
+    border-color:var(--green);
+    background:var(--green-bg);
+  }
+  .dropzone input{ display:none; }
+  .dropzone .btn-like{
+    display:inline-block;
+    background:var(--ink);
+    color:#fff;
+    padding:8px 14px;
+    border-radius:6px;
+    font-size:13px;
+    font-weight:600;
+    margin-bottom:10px;
+  }
+  .file-chip{
+    display:flex; align-items:center; gap:10px;
+    background:var(--green-bg);
+    border:1px solid #CDE7D8;
+    border-radius:8px;
+    padding:10px 14px;
+    font-size:13.5px;
+    margin-top:12px;
+  }
+  .file-chip .dot{
+    width:8px;height:8px;border-radius:50%;
+    background:var(--green); flex:none;
+  }
+  .file-chip .meta{ color:var(--muted); font-size:12px; }
+  textarea{
+    width:100%;
+    min-height:150px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:12px 14px;
+    font-family:var(--mono);
+    font-size:12.5px;
+    resize:vertical;
+    color:var(--ink);
+    background:#FCFDFB;
+  }
+  textarea:focus, .dropzone:focus-within{ outline:2px solid var(--teal); outline-offset:1px; }
+  .btn{
+    appearance:none;
+    border:none;
+    border-radius:7px;
+    padding:10px 18px;
+    font-size:13.5px;
+    font-weight:600;
+    cursor:pointer;
+    font-family:var(--sans);
+  }
+  .btn-primary{ background:var(--teal); color:#fff; }
+  .btn-primary:hover{ background:var(--teal-dark); }
+  .btn-primary:disabled{ background:#B9C4BF; cursor:not-allowed; }
+  .btn-ghost{ background:transparent; border:1px solid var(--line); color:var(--ink); }
+  .btn-ghost:hover{ border-color:var(--muted); }
+  .actions{ display:flex; gap:10px; margin-top:14px; align-items:center; flex-wrap:wrap; }
+  .hint{ font-size:12.5px; color:var(--muted); margin-top:8px; }
+
+  table{ width:100%; border-collapse:collapse; font-size:13px; margin-top:16px; }
+  th, td{ padding:9px 10px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+  th{ color:var(--muted); font-weight:600; font-size:12px; text-transform:none; }
+  td.mono, th.mono{ font-family:var(--mono); font-size:12.5px; }
+  tr.not-found td{ color:var(--red); }
+  .badge{
+    display:inline-block; padding:2px 8px; border-radius:20px;
+    font-size:11px; font-weight:600;
+  }
+  .badge-ok{ background:var(--green-bg); color:var(--green-dark); }
+  .badge-warn{ background:#FBF2E5; color:var(--amber); }
+  .badge-off{ background:#EFEFEF; color:var(--muted); }
+
+  .summary{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:12px;
+    margin-top:6px;
+  }
+  .summary .card{
+    background:#FAFBF9;
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:14px;
+  }
+  .summary .card .num{ font-size:22px; font-weight:700; }
+  .summary .card .lbl{ font-size:12px; color:var(--muted); margin-top:2px; }
+
+  .warn-box{
+    background:#FBF2E5;
+    border:1px solid #EBD4A8;
+    color:#7A5115;
+    border-radius:8px;
+    padding:12px 14px;
+    font-size:13px;
+    margin-top:14px;
+  }
+  .ok-box{
+    background:var(--green-bg);
+    border:1px solid #CDE7D8;
+    color:var(--green-dark);
+    border-radius:8px;
+    padding:12px 14px;
+    font-size:13px;
+    margin-top:14px;
+  }
+  footer.note{
+    max-width:1040px;
+    margin:0 auto;
+    padding:0 28px 40px;
+    color:var(--muted);
+    font-size:12px;
+  }
+  .disabled-step{ opacity:.5; pointer-events:none; }
+  code{ background:#EFF2ED; padding:1px 5px; border-radius:4px; font-family:var(--mono); font-size:12px; }
+
+  .or-divider{
+    display:flex; align-items:center; gap:12px;
+    margin:16px 0; color:var(--muted); font-size:12px;
+  }
+  .or-divider::before, .or-divider::after{
+    content:""; flex:1; height:1px; background:var(--line);
+  }
+  .img-dropzone{
+    border:1.5px dashed #BFCDBF;
+    border-radius:8px;
+    padding:20px;
+    text-align:center;
+    color:var(--muted);
+    font-size:13.5px;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  .img-dropzone:hover, .img-dropzone.drag{
+    border-color:var(--teal);
+    background:#EAF6F8;
+  }
+  .img-dropzone input{ display:none; }
+  .img-dropzone .btn-like{
+    display:inline-block;
+    background:var(--teal);
+    color:#fff;
+    padding:8px 14px;
+    border-radius:6px;
+    font-size:13px;
+    font-weight:600;
+    margin-bottom:8px;
+  }
+  .img-preview-wrap{
+    display:none;
+    gap:14px;
+    align-items:flex-start;
+    background:#FAFBF9;
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:12px;
+    margin-top:4px;
+  }
+  .img-preview-wrap img{
+    max-width:160px;
+    max-height:160px;
+    border-radius:6px;
+    border:1px solid var(--line);
+    flex:none;
+  }
+  .img-preview-meta{ flex:1; font-size:13px; }
+  .img-preview-meta .fname{ font-weight:600; margin-bottom:6px; }
+  .ocr-status{
+    font-size:12.5px;
+    color:var(--teal-dark);
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-top:6px;
+  }
+  .spinner{
+    width:13px; height:13px;
+    border:2px solid #CDE7EA;
+    border-top-color:var(--teal);
+    border-radius:50%;
+    animation:spin .7s linear infinite;
+    flex:none;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .progress-track{
+    width:100%; height:5px; border-radius:3px;
+    background:#E3ECE9; overflow:hidden; margin-top:8px;
+  }
+  .progress-fill{
+    height:100%; width:0%; background:var(--teal);
+    transition:width .2s;
+  }
+
+  .divider{
+    display:flex; align-items:center; gap:10px;
+    margin:16px 0;
+    color:var(--muted); font-size:12px;
+  }
+  .divider::before, .divider::after{
+    content:""; flex:1; height:1px; background:var(--line);
+  }
+  .img-dropzone{
+    border:1.5px dashed #BFCDBF;
+    border-radius:8px;
+    padding:20px;
+    text-align:center;
+    color:var(--muted);
+    font-size:13.5px;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  .img-dropzone:hover, .img-dropzone.drag{
+    border-color:var(--teal);
+    background:#EAF6F8;
+  }
+  .img-dropzone input{ display:none; }
+  .img-preview-row{
+    display:none;
+    align-items:center;
+    gap:14px;
+    margin-top:12px;
+    background:#FAFBF9;
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:10px 14px;
+  }
+  .img-preview-row img{
+    width:64px; height:64px; object-fit:cover;
+    border-radius:6px; border:1px solid var(--line);
+    flex:none;
+  }
+  .img-preview-info{ flex:1; font-size:13px; }
+  .img-preview-info .name{ font-weight:600; }
+  .img-preview-info .status{ color:var(--muted); font-size:12px; margin-top:2px; }
+  .ocr-progress{
+    height:5px; border-radius:4px; background:var(--line);
+    margin-top:8px; overflow:hidden; display:none;
+  }
+  .ocr-progress > div{
+    height:100%; width:0%; background:var(--teal);
+    transition:width .2s;
+  }
+</style>
+</head>
+<body>
+
+<header class="app">
+  <div class="row">
+    <h1>Ajuste A600 · Encontro de Contas</h1>
+    <span class="tag">Remoção de faturas rejeitadas em arquivo PTU</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- STEP 1 -->
+  <section class="step">
+    <div class="step-head">
+      <div class="step-num">1</div>
+      <div>
+        <h2>Envie o arquivo PTU</h2>
+        <p>O arquivo original recusado pelo Unimed (ex.: <code>c0309261.144</code>)</p>
+      </div>
+    </div>
+    <div class="step-body">
+      <label class="dropzone" id="dropzone" tabindex="0">
+        <input type="file" id="fileInput" accept=".144,.txt,.rem,.ret,*/*">
+        <div class="btn-like">Escolher arquivo</div>
+        <div>ou arraste o arquivo PTU aqui</div>
+      </label>
+      <div id="fileChip" style="display:none" class="file-chip">
+        <div class="dot"></div>
+        <div style="flex:1">
+          <div id="fileName" style="font-weight:600"></div>
+          <div class="meta" id="fileMeta"></div>
+        </div>
+        <button class="btn btn-ghost" id="clearFile" type="button">Remover</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section class="step" id="step2">
+    <div class="step-head">
+      <div class="step-num">2</div>
+      <div>
+        <h2>Cole o relatório de erro</h2>
+        <p>Copie o texto da tabela "Erro no Envio de Arquivo PTU" e cole abaixo</p>
+      </div>
+    </div>
+    <div class="step-body">
+      <textarea id="errorText" placeholder="1&#9;linha 2 (fatura), numero da fatura (111780) existente para a unimed credora (0144).
+2&#9;linha 172 (fatura), numero da fatura (83936) excluida com justificativa de (Fatura cancelada) para unimed credora (0144).
+3&#9;linha 199 (fatura), numero da fatura (40410721) existente para a unimed credora (0144).
+..."></textarea>
+
+      <div class="or-divider">ou envie um print do erro</div>
+
+      <label class="img-dropzone" id="imgDropzone" tabindex="0">
+        <input type="file" id="imgInput" accept="image/*">
+        <div class="btn-like">Escolher imagem</div>
+        <div>arraste um print aqui, ou cole com Ctrl+V em qualquer lugar da página</div>
+      </label>
+
+      <div class="img-preview-wrap" id="imgPreviewWrap">
+        <img id="imgPreview" alt="Print do erro">
+        <div class="img-preview-meta">
+          <div class="fname" id="imgFileName"></div>
+          <div id="ocrStatusLine" class="ocr-status" style="display:none">
+            <div class="spinner"></div>
+            <span id="ocrStatusText">Lendo o print…</span>
+          </div>
+          <div class="progress-track" id="ocrProgressTrack" style="display:none">
+            <div class="progress-fill" id="ocrProgressFill"></div>
+          </div>
+          <div class="actions" style="margin-top:10px">
+            <button class="btn btn-ghost" id="removeImgBtn" type="button">Remover imagem</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-primary" id="parseBtn">Analisar erros</button>
+        <span class="hint" id="parseHint">Cole o texto, envie um print, ou os dois — depois clique em analisar. Você poderá conferir e desmarcar linhas antes de remover.</span>
+      </div>
+
+      <div class="divider">ou</div>
+
+      <label class="img-dropzone" id="imgDropzone" tabindex="0">
+        <input type="file" id="imgInput" accept="image/*">
+        <div class="btn-like" style="background:var(--teal)">Enviar print do erro</div>
+        <div>envie a captura de tela e o texto será extraído automaticamente</div>
+      </label>
+      <div class="img-preview-row" id="imgPreviewRow">
+        <img id="imgPreviewThumb" alt="Print do erro">
+        <div class="img-preview-info">
+          <div class="name" id="imgPreviewName"></div>
+          <div class="status" id="imgPreviewStatus">Lendo imagem…</div>
+          <div class="ocr-progress" id="ocrProgress"><div id="ocrProgressBar"></div></div>
+        </div>
+        <button class="btn btn-ghost" id="clearImg" type="button">Remover</button>
+      </div>
+
+      <div id="matchTableWrap" style="display:none">
+        <table id="matchTable">
+          <thead>
+            <tr>
+              <th style="width:34px"></th>
+              <th>Código</th>
+              <th class="mono">Linha no arquivo</th>
+              <th class="mono">Nº fatura</th>
+              <th>Motivo do erro</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="matchTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 3 -->
+  <section class="step" id="step3">
+    <div class="step-head">
+      <div class="step-num">3</div>
+      <div>
+        <h2>Gerar arquivo ajustado</h2>
+        <p>As linhas marcadas acima serão removidas e a numeração sequencial recalculada</p>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="actions">
+        <button class="btn btn-primary" id="generateBtn" disabled>Remover linhas e gerar arquivo</button>
+        <button class="btn btn-ghost" id="downloadBtn" style="display:none">Baixar arquivo ajustado</button>
+      </div>
+
+      <div id="resultArea" style="display:none">
+        <div class="summary">
+          <div class="card"><div class="num" id="sumTotal">0</div><div class="lbl">Linhas no arquivo original</div></div>
+          <div class="card"><div class="num" id="sumRemoved">0</div><div class="lbl">Linhas removidas</div></div>
+          <div class="card"><div class="num" id="sumNew">0</div><div class="lbl">Linhas no novo arquivo</div></div>
+          <div class="card"><div class="num" id="sumNotFound">0</div><div class="lbl">Faturas não encontradas</div></div>
+        </div>
+        <div id="messages"></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="note">
+  O layout considerado é o padrão A600 observado no arquivo enviado: cabeçalho (linha 1), registros de fatura de 65
+  posições e rodapé (última linha) com contagem de registros na posição 24–37. A numeração sequencial (8 primeiros
+  dígitos de cada linha) e a contagem de faturas do rodapé são recalculadas automaticamente. Outros totais/somatórios
+  do rodapé, cujo layout completo não é documentado aqui, são mantidos como no arquivo original — confira o
+  reenvio no sistema Unimed antes de considerar o ajuste definitivo.
+</footer>
+
+<script>
+(function(){
+  const SEQ_WIDTH = 8;
+  const INVOICE_FIELD_START = 45;
+  const TRAILER_COUNT_START = 23;
+  const TRAILER_COUNT_LEN = 14;
+  const TRAILER_LEN_EXPECTED = 51;
+
+  let rawFileText = null;
+  let fileName = "";
+  let lineEnding = "\r\n";
+  let hadTrailingNewline = true;
+  let lines = [];          // all raw lines, no line endings
+  let headerLine = null;
+  let trailerLine = null;
+  let detailLines = [];    // { original, invoice, fileLineNumber }
+  let parsedErrors = [];   // { codigo, linha, fatura, motivo }
+  let adjustedText = null;
+
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const fileChip = document.getElementById('fileChip');
+  const fileNameEl = document.getElementById('fileName');
+  const fileMetaEl = document.getElementById('fileMeta');
+  const clearFileBtn = document.getElementById('clearFile');
+
+  const errorText = document.getElementById('errorText');
+  const parseBtn = document.getElementById('parseBtn');
+  const parseHint = document.getElementById('parseHint');
+  const matchTableWrap = document.getElementById('matchTableWrap');
+  const matchTableBody = document.getElementById('matchTableBody');
+
+  const imgDropzone = document.getElementById('imgDropzone');
+  const imgInput = document.getElementById('imgInput');
+  const imgPreviewWrap = document.getElementById('imgPreviewWrap');
+  const imgPreview = document.getElementById('imgPreview');
+  const imgFileName = document.getElementById('imgFileName');
+  const removeImgBtn = document.getElementById('removeImgBtn');
+  const ocrStatusLine = document.getElementById('ocrStatusLine');
+  const ocrStatusText = document.getElementById('ocrStatusText');
+  const ocrProgressTrack = document.getElementById('ocrProgressTrack');
+  const ocrProgressFill = document.getElementById('ocrProgressFill');
+
+  const generateBtn = document.getElementById('generateBtn');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const resultArea = document.getElementById('resultArea');
+  const messages = document.getElementById('messages');
+
+  // ---------- File handling ----------
+  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('keydown', e => { if(e.key==='Enter' || e.key===' ') fileInput.click(); });
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('drag');
+    if(e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', e => { if(e.target.files.length) loadFile(e.target.files[0]); });
+  clearFileBtn.addEventListener('click', () => {
+    rawFileText = null; fileName = "";
+    fileChip.style.display = 'none';
+    dropzone.style.display = 'flex';
+    fileInput.value = '';
+    resetDownstream();
+  });
+
+  function loadFile(file){
+    fileName = file.name;
+    const reader = new FileReader();
+    reader.onload = function(e){
+      rawFileText = e.target.result;
+      parseFile(rawFileText);
+      fileNameEl.textContent = fileName;
+      fileMetaEl.textContent = lines.length + ' linhas · ' + (rawFileText.length/1024).toFixed(1) + ' KB';
+      fileChip.style.display = 'flex';
+      dropzone.style.display = 'none';
+      resetDownstream();
+      tryAutoParseErrors();
+    };
+    reader.readAsText(file, 'ISO-8859-1');
+  }
+
+  function parseFile(text){
+    lineEnding = text.indexOf('\r\n') !== -1 ? '\r\n' : '\n';
+    hadTrailingNewline = text.endsWith(lineEnding);
+    let body = hadTrailingNewline ? text.slice(0, -lineEnding.length) : text;
+    lines = body.split(lineEnding);
+    headerLine = lines[0];
+    trailerLine = lines[lines.length - 1];
+    detailLines = [];
+    for(let i = 1; i < lines.length - 1; i++){
+      const original = lines[i];
+      const invoice = original.length > INVOICE_FIELD_START
+        ? original.slice(INVOICE_FIELD_START).trim()
+        : '';
+      detailLines.push({ original, invoice, fileLineNumber: i + 1 });
+    }
+  }
+
+  function resetDownstream(){
+    matchTableWrap.style.display = 'none';
+    matchTableBody.innerHTML = '';
+    generateBtn.disabled = true;
+    downloadBtn.style.display = 'none';
+    resultArea.style.display = 'none';
+    adjustedText = null;
+  }
+
+  function tryAutoParseErrors(){
+    if(errorText.value.trim().length > 0) parseErrors();
+  }
+
+  // ---------- Image / print upload (OCR) ----------
+  imgDropzone.addEventListener('click', () => imgInput.click());
+  imgDropzone.addEventListener('keydown', e => { if(e.key==='Enter' || e.key===' ') imgInput.click(); });
+  imgDropzone.addEventListener('dragover', e => { e.preventDefault(); imgDropzone.classList.add('drag'); });
+  imgDropzone.addEventListener('dragleave', () => imgDropzone.classList.remove('drag'));
+  imgDropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    imgDropzone.classList.remove('drag');
+    if(e.dataTransfer.files.length) handleImageFile(e.dataTransfer.files[0]);
+  });
+  imgInput.addEventListener('change', e => { if(e.target.files.length) handleImageFile(e.target.files[0]); });
+  removeImgBtn.addEventListener('click', () => {
+    imgPreviewWrap.style.display = 'none';
+    imgDropzone.style.display = 'flex';
+    imgInput.value = '';
+    ocrStatusLine.style.display = 'none';
+    ocrProgressTrack.style.display = 'none';
+  });
+
+  // Paste a screenshot anywhere on the page (Ctrl+V)
+  document.addEventListener('paste', e => {
+    const items = e.clipboardData && e.clipboardData.items;
+    if(!items) return;
+    for(const item of items){
+      if(item.type.indexOf('image') !== -1){
+        const file = item.getAsFile();
+        if(file) handleImageFile(file);
+        e.preventDefault();
+        break;
+      }
+    }
+  });
+
+  function handleImageFile(file){
+    if(!file.type.startsWith('image/')){
+      alert('Selecione um arquivo de imagem (print da tela).');
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    imgPreview.src = url;
+    imgFileName.textContent = file.name || 'Print colado';
+    imgPreviewWrap.style.display = 'flex';
+    imgDropzone.style.display = 'none';
+    runOcr(file);
+  }
+
+  function runOcr(file){
+    if(typeof Tesseract === 'undefined'){
+      ocrStatusLine.style.display = 'flex';
+      ocrStatusText.textContent = 'Não foi possível carregar o leitor de imagem (sem conexão). Cole o texto manualmente.';
+      ocrStatusLine.querySelector('.spinner').style.display = 'none';
+      return;
+    }
+    ocrStatusLine.style.display = 'flex';
+    ocrStatusLine.querySelector('.spinner').style.display = 'inline-block';
+    ocrStatusText.textContent = 'Lendo o print…';
+    ocrProgressTrack.style.display = 'block';
+    ocrProgressFill.style.width = '0%';
+    parseBtn.disabled = true;
+
+    Tesseract.recognize(file, 'por', {
+      logger: m => {
+        if(m.status === 'recognizing text' && typeof m.progress === 'number'){
+          ocrProgressFill.style.width = Math.round(m.progress * 100) + '%';
+          ocrStatusText.textContent = 'Lendo o print… ' + Math.round(m.progress * 100) + '%';
+        } else if(m.status){
+          ocrStatusText.textContent = capitalize(m.status) + '…';
+        }
+      }
+    }).then(({ data: { text } }) => {
+      const cleaned = text.trim();
+      if(errorText.value.trim().length > 0){
+        errorText.value = errorText.value.trim() + '\n' + cleaned;
+      } else {
+        errorText.value = cleaned;
+      }
+      ocrStatusText.textContent = 'Texto reconhecido a partir do print.';
+      ocrProgressFill.style.width = '100%';
+      ocrStatusLine.querySelector('.spinner').style.display = 'none';
+      parseBtn.disabled = false;
+      parseErrors();
+    }).catch(err => {
+      console.error(err);
+      ocrStatusText.textContent = 'Não foi possível ler o print automaticamente. Cole o texto manualmente.';
+      ocrStatusLine.querySelector('.spinner').style.display = 'none';
+      parseBtn.disabled = false;
+    });
+  }
+
+  function capitalize(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  // ---------- Error report parsing ----------
+  parseBtn.addEventListener('click', parseErrors);
+
+  function parseErrors(){
+    const text = errorText.value;
+    if(!text.trim()){
+      parseHint.textContent = 'Cole o texto do relatório de erro antes de analisar.';
+      return;
+    }
+    const rawLines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+    parsedErrors = [];
+
+    rawLines.forEach(line => {
+      // skip obvious table header lines
+      if(/^c[oó]digo\s+descri[cç][aã]o/i.test(line)) return;
+
+      const codigoMatch = line.match(/^(\d+)\s+/);
+      const linhaMatch = line.match(/linha\s+(\d+)/i);
+      const faturaMatch = line.match(/fatura\s*\(\s*(\d+)\s*\)/i);
+
+      if(!linhaMatch && !faturaMatch) return; // not a recognizable error row
+
+      parsedErrors.push({
+        codigo: codigoMatch ? codigoMatch[1] : '—',
+        linha: linhaMatch ? parseInt(linhaMatch[1], 10) : null,
+        fatura: faturaMatch ? faturaMatch[1] : null,
+        motivo: line.replace(/^\d+\s+/, '')
+      });
+    });
+
+    // Fallback pass over the flattened text: catches cases where OCR/print
+    // breaks "linha N (fatura)" and "numero da fatura (X)" across different
+    // lines, so the per-line pass above misses the row.
+    const flat = text.replace(/\s+/g, ' ');
+    const seenFaturas = new Set(parsedErrors.map(e => e.fatura).filter(Boolean));
+    const seenLinhas = new Set(parsedErrors.map(e => e.linha).filter(Boolean));
+    const fallbackRe = /linha\s+(\d+)\s*\(fatura\)[,]?[\s\S]{0,60}?fatura\s*\(\s*(\d+)\s*\)([\s\S]{0,90}?)(?=linha\s+\d+\s*\(fatura\)|$)/gi;
+    let m;
+    while((m = fallbackRe.exec(flat)) !== null){
+      const linha = parseInt(m[1], 10);
+      const fatura = m[2];
+      if(seenFaturas.has(fatura) || seenLinhas.has(linha)) continue;
+      parsedErrors.push({
+        codigo: '—',
+        linha: linha,
+        fatura: fatura,
+        motivo: ('linha ' + linha + ' (fatura), numero da fatura (' + fatura + ')' + m[3]).trim()
+      });
+      seenFaturas.add(fatura);
+      seenLinhas.add(linha);
+    }
+
+    renderMatchTable();
+  }
+
+  function findDetailByInvoice(invoice){
+    return detailLines.find(d => d.invoice === invoice);
+  }
+  function findDetailByLineNumber(n){
+    return detailLines.find(d => d.fileLineNumber === n);
+  }
+
+  function renderMatchTable(){
+    matchTableBody.innerHTML = '';
+
+    if(parsedErrors.length === 0){
+      parseHint.textContent = 'Não foi possível identificar linhas de erro no texto colado. Verifique o formato (esperado: "linha N (fatura), numero da fatura (X) ...").';
+      matchTableWrap.style.display = 'none';
+      generateBtn.disabled = true;
+      return;
+    }
+
+    const hasFile = detailLines.length > 0;
+    let notFoundCount = 0;
+
+    parsedErrors.forEach((err, idx) => {
+      let match = null;
+      let statusHtml = '<span class="badge badge-off">Sem arquivo carregado</span>';
+      let rowClass = '';
+
+      if(hasFile){
+        if(err.fatura) match = findDetailByInvoice(err.fatura);
+        if(!match && err.linha) match = findDetailByLineNumber(err.linha);
+
+        if(match){
+          statusHtml = '<span class="badge badge-ok">Encontrada · linha ' + match.fileLineNumber + '</span>';
+        } else {
+          statusHtml = '<span class="badge badge-warn">Não encontrada</span>';
+          rowClass = 'not-found';
+          notFoundCount++;
+        }
+      }
+
+      const tr = document.createElement('tr');
+      tr.className = rowClass;
+      tr.dataset.idx = idx;
+      tr.innerHTML =
+        '<td><input type="checkbox" class="row-check" ' + (match ? 'checked' : '') + (match ? '' : ' disabled') + '></td>' +
+        '<td class="mono">' + err.codigo + '</td>' +
+        '<td class="mono">' + (err.linha ?? '—') + '</td>' +
+        '<td class="mono">' + (err.fatura ?? '—') + '</td>' +
+        '<td>' + escapeHtml(err.motivo) + '</td>' +
+        '<td>' + statusHtml + '</td>';
+      tr.__match = match;
+      matchTableBody.appendChild(tr);
+    });
+
+    matchTableWrap.style.display = 'block';
+    const foundCount = parsedErrors.length - notFoundCount;
+    parseHint.textContent = hasFile
+      ? (foundCount + ' de ' + parsedErrors.length + ' faturas localizadas no arquivo. Desmarque alguma linha se não quiser removê-la.')
+      : (parsedErrors.length + ' erros identificados. Envie o arquivo PTU (passo 1) para localizar as linhas correspondentes.');
+
+    generateBtn.disabled = !hasFile;
+  }
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---------- Generate adjusted file ----------
+  generateBtn.addEventListener('click', () => {
+    if(!headerLine || !trailerLine){
+      alert('Envie o arquivo PTU antes de gerar o arquivo ajustado.');
+      return;
+    }
+
+    const checks = Array.from(matchTableBody.querySelectorAll('tr'));
+    const toRemove = new Set();
+    checks.forEach(tr => {
+      const checkbox = tr.querySelector('.row-check');
+      if(checkbox && checkbox.checked && tr.__match){
+        toRemove.add(tr.__match.fileLineNumber);
+      }
+    });
+
+    const originalDetailCount = detailLines.length;
+    const keptDetails = detailLines.filter(d => !toRemove.has(d.fileLineNumber));
+    const removedCount = originalDetailCount - keptDetails.length;
+    const newTotalLines = 1 + keptDetails.length + 1; // header + details + trailer
+
+    // Renumber leading sequence field on every line
+    const newHeader = String(1).padStart(SEQ_WIDTH, '0') + headerLine.slice(SEQ_WIDTH);
+    const newDetailLines = keptDetails.map((d, i) => {
+      const seq = String(i + 2).padStart(SEQ_WIDTH, '0');
+      return seq + d.original.slice(SEQ_WIDTH);
+    });
+    let newTrailer = String(newTotalLines).padStart(SEQ_WIDTH, '0') + trailerLine.slice(SEQ_WIDTH);
+
+    // Update the detail-record count field in the trailer, if the layout matches what we detected
+    let trailerCountUpdated = false;
+    if(trailerLine.length === TRAILER_LEN_EXPECTED){
+      const oldCountField = trailerLine.slice(TRAILER_COUNT_START, TRAILER_COUNT_START + TRAILER_COUNT_LEN);
+      const oldCountVal = parseInt(oldCountField, 10);
+      if(!isNaN(oldCountVal) && oldCountVal === originalDetailCount){
+        const newCountField = String(keptDetails.length).padStart(TRAILER_COUNT_LEN, '0');
+        newTrailer = newTrailer.slice(0, TRAILER_COUNT_START) + newCountField + newTrailer.slice(TRAILER_COUNT_START + TRAILER_COUNT_LEN);
+        trailerCountUpdated = true;
+      }
+    }
+
+    const finalLines = [newHeader, ...newDetailLines, newTrailer];
+    adjustedText = finalLines.join(lineEnding) + (hadTrailingNewline ? lineEnding : '');
+
+    // Summary
+    document.getElementById('sumTotal').textContent = lines.length;
+    document.getElementById('sumRemoved').textContent = removedCount;
+    document.getElementById('sumNew').textContent = finalLines.length;
+    const notFoundCount = parsedErrors.filter(e => {
+      let m = e.fatura ? findDetailByInvoice(e.fatura) : null;
+      if(!m && e.linha) m = findDetailByLineNumber(e.linha);
+      return !m;
+    }).length;
+    document.getElementById('sumNotFound').textContent = notFoundCount;
+
+    messages.innerHTML = '';
+    if(trailerCountUpdated){
+      const box = document.createElement('div');
+      box.className = 'ok-box';
+      box.textContent = 'Numeração sequencial e contagem de faturas no rodapé (' + keptDetails.length + ') atualizadas.';
+      messages.appendChild(box);
+    } else {
+      const box = document.createElement('div');
+      box.className = 'warn-box';
+      box.textContent = 'Numeração sequencial atualizada. Não foi possível confirmar automaticamente o campo de contagem de faturas no rodapé — confira esse valor antes do reenvio.';
+      messages.appendChild(box);
+    }
+    if(notFoundCount > 0){
+      const box = document.createElement('div');
+      box.className = 'warn-box';
+      box.textContent = notFoundCount + ' fatura(s) do relatório de erro não foram localizadas neste arquivo e não puderam ser removidas.';
+      messages.appendChild(box);
+    }
+
+    resultArea.style.display = 'block';
+    downloadBtn.style.display = 'inline-block';
+  });
+
+  downloadBtn.addEventListener('click', () => {
+    if(!adjustedText) return;
+    const blob = new Blob([adjustedText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const base = fileName.includes('.') ? fileName.slice(0, fileName.lastIndexOf('.')) : fileName;
+    const ext = fileName.includes('.') ? fileName.slice(fileName.lastIndexOf('.')) : '.144';
+    a.href = url;
+    a.download = base + '_ajustado' + ext;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+})();
+</script>
+
+</body>
+</html>
